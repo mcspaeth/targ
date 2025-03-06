@@ -1,0 +1,11 @@
+#!/bin/csh
+
+tasm -65 -b -fff targ.asm
+
+dd if=targ.obj bs=2048 count=1 skip=3 > hrl_10a1.10a
+dd if=targ.obj bs=2048 count=1 skip=4 > hrl_9a1.9a
+dd if=targ.obj bs=2048 count=1 skip=5 > hrl_8a1.8a
+dd if=targ.obj bs=2048 count=1 skip=6 > hrl_7a4.7a
+dd if=targ.obj bs=2048 count=1 skip=7 > hrl_6a3.6a
+
+zip ../../targ.zip hrl_* stl_* hra2b-1
