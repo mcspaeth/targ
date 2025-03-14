@@ -541,7 +541,11 @@ L1ab8:
 				jsr			L226a
 				ldy			#$00
 				lda			($2a), y
+				and			#$fe										; Clear LSB 
 				cmp			#$20
+				bne			L3f69
+
+.if 0
 				beq			L1ad1										; --> $2d94 
 				nop
 
@@ -549,16 +553,179 @@ L1ab8:
 				beq			L1ad1										; --> $2d94 
 				nop
 
-				;; Moved in-line
 				;; Did commenting this kill collision detection?!
 				jmp			L3f69
+.endif
 
 L1ad1:
-				jmp			L2d94
+;				jmp			L2d94										; Inlined 
+L2d94:
+				jsr			L2473
+				lda			$20
+				and			#$3f
+				sta			$21
 
 L1ad4:
-				jmp			L2d9d
+;				jmp			L2d9d										; Inlined 
+L2d9d:
+				lda			$31
+				bne			L2dad
+				nop
 
+				lda			#$00
+				sta			$c2
+				lda			SPRVAL
+				ora			#$f0										; Clear MOB2 
+				sta			SPRVAL
+				rts
+				
+L2dad:
+				dec			$27
+				bne			L2dc7
+				nop
+
+				inc			$c2
+				jsr			L2275
+				ldy			#$00
+				lda			($2a), y
+				cmp			#$20
+				bne			L2dc8
+				nop
+
+L2dc0:
+				jsr			L24ae
+				lda			$26
+				sta			$27
+L2dc7:
+				rts
+
+				
+L2dc8:
+				sta			$03
+				lda			$c2
+				cmp			#$06
+				bcc			L2dc0
+
+				lda			#$21
+				sta			($2a), y
+				lda			SPRVAL
+				ora			#$f0
+				sta			SPRVAL
+				lda			$30
+				ora			#$04										; Set D2 
+				sta			$30
+				lda			#$00
+				sta			$31
+				lda			$03
+				cmp			#$c0
+				bcs			L2dec
+				nop
+
+				rts
+
+L2dec:
+				lda			$3e
+				and			#$9f										; Clear D6,5 
+				sta			$3e
+				lda			#$00
+				sta			$b8
+				lda			#$80
+				sta			$b9
+				jsr			L23a4										; Kick PRNG
+				ora			#$c0										; Set D7,6 
+				sta			$b3
+				jsr			L2eaa
+				lda			#$80
+				sta			$bc
+				lda			$3e
+				and			#$fd
+				sta			$3e
+				inc			$b0
+				rts
+
+
+				;; Moved from end
+L3f69:
+				lda			#$50
+				jsr			L23cf										; Set AUDIO1 bits 
+				lda			#$00
+				sta			AUDIO2
+				jsr			L3fe2
+				lda			#$ee										; Clear MOB1,2
+				sta			MOBLAT									; Sprite latch
+				lda			SPRVAL
+				and			#$02
+				bne			L3f8c
+				nop
+
+				lda			SPR1H
+				clc
+				adc			#$08
+				sta			SPR1H
+				jmp			L3f93
+
+L3f8c:
+				lda			SPR1V
+				clc
+				adc			#$08
+				sta			SPR1V
+
+L3f93:
+				lda			SPRVAL
+				ora			#$0f										; Set 4 LSBs (Clear MOB1)
+				sta			SPRVAL
+				lda			STATUS
+				ora			#$20										; Set D5 
+				sta			STATUS
+
+
+				;; Explosion animation
+				lda			#$f8										; 1st explosion sprite 
+				sta			$0a
+
+L3fa3:
+				sta			MOBLAT									; Sprite latch
+
+				;; Delay
+				lda			#$08										; Delay 8 frames 
+				jsr			DELAY
+
+				inc			$0a
+				lda			$0a
+				cmp			#$fe										; Last exploision sprite 
+				bne			L3fa3
+
+				lda			#$15
+				jsr			DELAY										; Delay 21 frames
+
+				lda			#$10
+				jsr			L23cf										; Set AUDIO1 bits 
+				lda			$30
+				ora			#$02										; Set D1 
+				sta			$30
+				lda			SPRVAL
+				ora			#$f0										; Clear MOB2
+				sta			SPRVAL
+				sta			MOBLAT									; Sprite latch
+
+				lda			#$2a
+				jsr			DELAY										; Delay 42 frames
+
+				lda			STATUS
+				and			#$df										; Clear D5 
+				sta			STATUS
+				rts
+
+L3fe2:
+				bit			STATUS
+				bpl			L3fec										; D7 clear 
+				nop
+
+				lda			#$70
+				sta			AUDIO1
+L3fec:
+				rts
+				;; End of moved 
 
 
 L1ad7:
@@ -859,7 +1026,7 @@ L1e08:
 				lda			SCOREP+1
 				cmp			SCOREH+1
 				beq			L1e13
-				nopx
+				nop
 
 				bcs			L1e1b
 				nop
@@ -1122,7 +1289,6 @@ L2088:
 				lda			CURIN0
 				and			#$ef										; Clear d4 
 				bne			L2093 
-				nop
 
 				jsr			L2225										; (if 0) 
 				rts
@@ -1130,22 +1296,18 @@ L2088:
 L2093:
 				cmp			#$20
 				beq			L20ea
-				nop
 
 				cmp			#$40
 				beq			L2113
-				nop
 
 				cmp			#$04
 				bne			L20a5
-				nop
 
 				jmp			L213e
 
 L20a5:
 				cmp			#$08
 				bne			L20ad
-				nop
 
 				jmp			L2169
 L20ad:
@@ -1154,7 +1316,6 @@ L20ad:
 L20ae:
 				lda			$31
 				beq			L20b4
-				nop
 
 				rts
 
@@ -1162,7 +1323,6 @@ L20b4:
 				lda			CURIN0
 				and			#$10
 				bne			L20bc
-				nop
 
 				rts
 
@@ -1191,28 +1351,39 @@ L20bc:
 				sta			SPR2H
 				lda			SPR1V
 				sta			SPR2V
-				jsr			L21d9
+;				jsr			L21d9										; Only called here
+
+L21d9:
+				lda			$1e
+				jsr			L21e8
+				sta			$24
+				lda			$1f
+				jsr			L21e8
+				sta			$25
+
 				jmp			L246d										; Update MOBLAT (and rts)
 
 
 L20ea:
 				lda			$1f
 				beq			L2101
-				nop
+
 				bmi			L20f5
-				nop
+
 				jmp			L21f4
+
 L20f5:
 				lda			$20
 				and			#$3f
 				cmp			#$0a
-				bcs			L2108
-				nop
+				bcs			L2108										; Missile Up 
+
 				jmp			L220a
+
 L2101:
 				jsr			L21a1
-				bcs			L2108
-				nop
+				bcs			L2108										; Missile Up 
+
 				rts
 
 				;; Missile up?
@@ -1226,10 +1397,8 @@ L2108:
 L2113:
 				lda			$1f
 				beq			L212a
-				nop
 
 				bpl			L211e
-				nop
 
 				jmp			L21f4
 
@@ -1238,15 +1407,13 @@ L211e:
 				lda			$20
 				and			#$3f										; Mask 6 LSBs 
 				cmp			#$0a
-				bcs			L2131
-				nop
+				bcs			L2131										; Missile down 
 
 				jmp			L220a
 
 L212a:
 				jsr			L21a1
-				bcs			L2131
-				nop
+				bcs			L2131										; Missile down 
 
 				rts
 
@@ -1262,23 +1429,23 @@ L2131:
 L213e:
 				lda			$1e
 				beq			L2155
-				nop
 
 				bpl			L2149
-				nop
 
 				jmp			L21f4
+
 L2149:
 				lda			$20
 				and			#$3f
 				cmp			#$0a
-				bcs			L215c
-				nop
+				bcs			L215c										; Missile left 
+
 				jmp			L220a
+
 L2155:
 				jsr			L21a9
-				bcs			L215c
-				nop
+				bcs			L215c										; Missile left 
+
 				rts
 
 				;; Missile left?
@@ -1304,14 +1471,14 @@ L2174:
 				lda			$20
 				and			#$3f
 				cmp			#$0a
-				bcs			L2187
+				bcs			L2187										; Missile right 
 				nop
 
 				jmp			L220a
 
 L2180:
 				jsr			L21a9
-				bcs			L2187
+				bcs			L2187										; Missile right 
 				nop
 
 				rts
@@ -1335,32 +1502,40 @@ L2191:
 ;				jsr			L246d										; Update MOBLAT (unneeded)
 				rts
 
+
 L21a1:
 				lda			SPR1H
 				beq			L21c7
 				nop
+
 				jmp			L21ae
+
 L21a9:
 				lda			SPR1V
 				beq			L21c7
 				nop
+
 L21ae:
 				sta			$01
 				ldx			#$0a
 				lda			#$00
 				sta			$00
+
 L21b6:
 				cmp			$01
 				beq			L21c7
 				nop
+
 				lda			#$18
 				clc
 				adc			$00
 				sta			$00
 				dex
-				bne			L21b6
+				bne			L21b6										 ; Loop 
+
 				clc
 				rts
+
 L21c7:
 				lda			$39
 				sta			$3a
@@ -1373,15 +1548,6 @@ L21c7:
 				sec
 				rts
 
-				;; 
-L21d9:
-				lda			$1e
-				jsr			L21e8
-				sta			$24
-				lda			$1f
-				jsr			L21e8
-				sta			$25
-				rts
 
 				;; a --> #$02, #$00, #$fd
 L21e8:
@@ -3214,88 +3380,6 @@ L2d8f:
 				lda			$03
 				sta			(SCRLOC), y							; Why was this STRLOC? 
 				rts
-				
-L2d94:
-				jsr			L2473
-				lda			$20
-				and			#$3f
-				sta			$21
-
-L2d9d:
-				lda			$31
-				bne			L2dad
-				nop
-
-				lda			#$00
-				sta			$c2
-				lda			SPRVAL
-				ora			#$f0
-				sta			SPRVAL
-				rts
-
-L2dad:
-				dec			$27
-				bne			L2dc7
-				nop
-
-				inc			$c2
-				jsr			L2275
-				ldy			#$00
-				lda			($2a), y
-				cmp			#$20
-				bne			L2dc8
-				nop
-
-L2dc0:
-				jsr			L24ae
-				lda			$26
-				sta			$27
-L2dc7:
-				rts
-
-L2dc8:
-				sta			$03
-				lda			$c2
-				cmp			#$06
-				bcc			L2dc0
-
-				lda			#$21
-				sta			($2a), y
-				lda			SPRVAL
-				ora			#$f0
-				sta			SPRVAL
-				lda			$30
-				ora			#$04										; Set D2 
-				sta			$30
-				lda			#$00
-				sta			$31
-				lda			$03
-				cmp			#$c0
-				bcs			L2dec
-				nop
-
-				rts
-
-L2dec:
-				lda			$3e
-				and			#$9f										; Clear D6,5 
-				sta			$3e
-				lda			#$00
-				sta			$b8
-				lda			#$80
-				sta			$b9
-				jsr			L23a4										; Kick PRNG
-				ora			#$c0										; Set D7,6 
-				sta			$b3
-				jsr			L2eaa
-				lda			#$80
-				sta			$bc
-				lda			$3e
-				and			#$fd
-				sta			$3e
-				inc			$b0
-				rts
-
 
 L2e11:
 				lda			$b8
@@ -4425,87 +4509,6 @@ L3486:
 
 				.org		$3f00
 				;; Patch for end of L1ab8
-L3f69:
-				lda			#$50
-				jsr			L23cf										; Set AUDIO1 bits 
-				lda			#$00
-				sta			AUDIO2
-				jsr			L3fe2
-				lda			#$ee										; Clear MOB1,2
-				sta			MOBLAT									; Sprite latch
-				lda			SPRVAL
-				and			#$02
-				bne			L3f8c
-				nop
-
-				lda			SPR1H
-				clc
-				adc			#$08
-				sta			SPR1H
-				jmp			L3f93
-
-L3f8c:
-				lda			SPR1V
-				clc
-				adc			#$08
-				sta			SPR1V
-
-L3f93:
-				lda			SPRVAL
-				ora			#$0f										; Set 4 LSBs (Clear MOB1)
-				sta			SPRVAL
-				lda			STATUS
-				ora			#$20										; Set D5 
-				sta			STATUS
-
-
-				;; Explosion animation
-				lda			#$f8										; 1st explosion sprite 
-				sta			$0a
-
-L3fa3:
-				sta			MOBLAT									; Sprite latch
-
-				;; Delay
-				lda			#$08										; Delay 8 frames 
-				jsr			DELAY
-
-				inc			$0a
-				lda			$0a
-				cmp			#$fe										; Last exploision sprite 
-				bne			L3fa3
-
-				lda			#$15
-				jsr			DELAY										; Delay 21 frames
-
-				lda			#$10
-				jsr			L23cf										; Set AUDIO1 bits 
-				lda			$30
-				ora			#$02										; Set D1 
-				sta			$30
-				lda			SPRVAL
-				ora			#$f0										; Clear MOB2
-				sta			SPRVAL
-				sta			MOBLAT									; Sprite latch
-
-				lda			#$2a
-				jsr			DELAY										; Delay 42 frames
-
-				lda			STATUS
-				and			#$df										; Clear D5 
-				sta			STATUS
-				rts
-
-L3fe2:
-				bit			STATUS
-				bpl			L3fec										; D7 clear 
-				nop
-
-				lda			#$70
-				sta			AUDIO1
-L3fec:
-				rts
-
 
 				;; Vectors
 				.org		$3ff8
