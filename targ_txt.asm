@@ -73,7 +73,11 @@ STR17:
 				.db			"FREE  PLAY", $00
 
 STR18:
+				.db			"            ", $00
+
+STR19:
 				.db			"PRESS  START", $00
+
 
 TXTTBL:
 				.dw			STR00
@@ -101,6 +105,7 @@ TXTTBL:
 				.dw			STR16
 				.dw			STR17
 				.dw			STR18
+				.dw			STR19
 
 				;; Screen locations
 TXTLOC:
@@ -129,6 +134,7 @@ TXTLOC:
 				.dw			$400b														; STR16
 				.dw			$416b														; STR17
 				.dw			$422a														; STR18
+				.dw			$422a														; STR19
 
 				
 .if 0

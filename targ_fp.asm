@@ -3066,11 +3066,7 @@ L2aba:
 				;; Draw DEPOSIT COIN / OR PRESS START
 L2b4f:
 				bit			DSW
-				bmi			ICNOFP
-
-				lda			#$37
-				jsr			DRAWSTRA
-				beq			DICPRESS								; (Always) 
+				bpl			DICPRESS								; (Free play)
 
 ICNOFP:
 				lda			#$11										; DEPOSIT COIN
@@ -3082,7 +3078,7 @@ ICNOFP:
 				rts
 
 L2b58:
-				lda			#$12										; OR PRESS START
+				lda			#$12										; OR
 				jsr			DRAWSTRA								; Draw string
 
 DICPRESS:
@@ -4356,8 +4352,8 @@ L18f9:
 				sta			DELH										; Outer Loop counter
 
 L33a2:
-				jsr			L2b4f										; Draw DEPOSIT_COIN
 				jsr			L2bea										; Draw CREDITS_##
+				jsr			L2b4f										; Draw DEPOSIT_COIN
 
 				lda			#$1e										; 1/2 second
 				sta			TIMERA									; IRQ frame count down
