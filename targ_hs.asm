@@ -8,13 +8,13 @@ HSEC		= $1e										; 1/2 second = 30 IRQs
 L0000		= $00										; Misc temp var
 L0001		= $01										; Misc temp var
 START		= $02										; UNUSED
-HSCNT		= $03
 L0003		= $03										; (2 bytes) Misc temp var
+			
 DELL		= $06										; (2 bytes) Delay counter (Was $16)
 DELH		= $07										; (2 bytes) Delay counter	(Was $17)
 PRNG		= $08										; (2 bytes) PRNG
 DEADSPR	= $0a										; Sprite for crash sequence
-				
+
 ARRTMP	= $0b										; (7 bytes) arrow temp location   ($0b to $12)
 ATPRNT	= $0b										; +0 Arrow PRNG val
 ATDIR		= $0c										; +1 Arrow dir
@@ -90,6 +90,9 @@ PLEVEL	= $dc										; $dc-dd = P1/2					Level?
 				;; $00de-00df		= P1/2 ??
 
 				;; $00e0-00ff		= Apparently unused
+HSCNT		= $e0
+HSPOS		= $e1
+TMPINIT = $e2										; (3 bytes)
 
 
 				;; $0300				= Counter to validate coins
@@ -97,7 +100,9 @@ PLEVEL	= $dc										; $dc-dd = P1/2					Level?
 
 HSTBL		= $0200													; Change for real kit
 INITS		=	$0210													; Change for real kit
-				
+
+INITLOC	= $4314													; Screen loc 
+								
 MOB1H		= $5000
 MOB1V		= $5040
 MOB2H		= $5080
@@ -110,47 +115,73 @@ IN0B		= $5105													; Mirror of above
 AUDIO1	= $5200
 AUDIO2	= $5201
 
+
 				.org		$0000
 				.db			$ff
 
 				.org		$1800
-L1800:
-				jsr			L2f0c										; Copy player data to PX
-				bne			L180f										; (Always) 
+				;; Reset vector
+LRESET:
+L3000:
+				sei															; Disable interrupts
+				ldx			#$ff										; Stack pointer, loop counter
+				txs															; Set stack pointer
 
-L1806:
-				jsr			L2f0a										; Copy player data to P2
-				bne			L180f										; (Always) 
+				;; Wait for vblank
+L3004:
+				lda			$5103										; IRQ source
+				dex
+				bmi			L3004										; Loop
 
-L180c:
+				cld
+				lda			#$00
+				sta			HCOIN
+				sta			CREDIT
+				sta			START
+				sta			COINCNT
+				cli															; Enable interrupts
+
+				jsr			L22bc										; Write character RAM 
+
+				lda			#$00
+				sta			$ab											; ?? 
+				sta			VAUD1										; ?? 
+				sta			SCOREP									; Clear player score 
+				sta			SCOREP+1
+
+				;; Set default high score
+				sta			SCOREH									; HS lo
+				lda			#$10
+				sta			SCOREH+1								; HS hi
+
+;				jsr			L180c										; Copy player data to P1
 				jsr			L2f05										; Copy player data to P1
-				rts
+;				jsr			L1806										; Copy player data to P2
+				jsr			L2f0a										; Copy player data to P2
 
-L1814:
-				jsr			L2eec								; Copy PX store to player data
-				jmp			L1823
+MAINLOOP:
 
-L181a:
-				jsr			L2eea								; Copy P2 store to player data
-				jmp			L1823
+;				jsr			DOINITS									; For testing 
+				jsr			ATTRACT									; Attract mode 
+				jsr			FAKEGAME								; Fake gameplay
+				jsr			ATTHS										; High score screen 
 
-L1820:
-				jsr			L2ee5								; Copy P1 store to player data
-L1823:
-				lda			$de, x
-				sta			$28									; ??
-				rts
+				lda			START
+				beq			MAINLOOP
 
-L1828:
-				jsr			L1832
-				jsr			L1847
-				jsr			L2371
-				rts
+				jsr			PLAYGAME
+				jsr			EOGHS
+				jsr			ATTHS
+				jmp			MAINLOOP
 
+
+				;; Misc subrouteines
+			
 L1832:
 				dec			$a4
 				bmi			L183d
 				nop
+
 				lda			#$02
 				jsr			L23cf										; Set AUDIO1 bits 
 				rts
@@ -166,7 +197,9 @@ L1847:
 				dec			$a5
 				bmi			L184d
 				nop
+
 				rts
+
 L184d:
 				sec
 				lda			#$14
@@ -177,6 +210,7 @@ L184d:
 				cmp			#$01
 				bne			L1875
 				nop
+
 				lda			#$00
 L185f:
 				sta			$a6
@@ -184,16 +218,22 @@ L185f:
 				cmp			#$03
 				beq			L187a
 				nop
+
 				cmp			#$01
 				beq			L187a
 				nop
+
 				lda			$a6
 				ora			#$02
 				sta			AUDIO2
+
 				rts
+
 L1875:
 				lda			#$01
-				jmp			L185f
+;				jmp			L185f										; bne 
+				bne			L185f										; bne 
+
 L187a:
 				lda			$a6
 				sta			AUDIO2
@@ -257,19 +297,6 @@ L18e2:
 				lda			SCOREH+1								; High score hi
 				ldx			#$11										; Location 
 				jsr			L2a60										; Draw 2 byte score from a, $03
-				rts
-
-
-				;; GAME OVER
-L1918:
-				jsr			L2340										; Clear screen
-
-				;; Draw STR07
-				lda			#$07										; END OF GAME
-				jsr			DRAWSTRA
-
-				jsr			DEL168
-				sta			START										; Clear START to flag game over
 				rts
 
 
@@ -1094,7 +1121,7 @@ LBIG3:
 				.db			               $23
 				.db			     $41, $42
 				.db			               $63
-				.db			$80,           $8e
+				.db			$80,           $83
 				.db			     $A1, $A2
 				.db			$FF
 
@@ -1958,8 +1985,6 @@ L2421:
 				ora			#$30
 				sta			$4253										; Location
 
-;				jmp			DEL168									; Delay 168 frames
-				
 DEL168:	
 				lda			#$a8										; 168 frames 
 DELAY:
@@ -3542,13 +3567,17 @@ L2ee4:
 
 
 				;; Copy P1 store to player data
+GETP1:
 L2ee5:
 				ldx			#$00										; For P1
-				jmp			L2eec
+;				jmp			L2eec										; BEQ 
+				beq			L2eec										; BEQ 
 
 				;; Copy P2 store to player data
+GETP2:
 L2eea:
 				ldx			#$01										; For P2
+GETPX:
 L2eec:
 				lda			$d0, x
 				sta			SCOREP									; Score lo
@@ -3562,7 +3591,12 @@ L2eec:
 				sta			$b0											; Shots at special
 				lda			$da, x
 				sta			$c3											; Points/arrow
+
+L1823:
+				lda			$de, x
+				sta			$28									; ??
 				rts
+
 
 				;; Copy player data to P1 store
 L2f05:
@@ -3593,64 +3627,6 @@ L180f:
 
 				rts
 
-
-				;;
-				;; Common text include
-				;;
-
-.include "targ_txt.asm"
-
-				;; Reset vector
-				.org		$3000
-LRESET:
-L3000:
-				sei															; Disable interrupts
-				ldx			#$ff										; Stack pointer, loop counter
-				txs															; Set stack pointer
-
-				;; Wait for vblank
-L3004:
-				lda			$5103										; IRQ source
-				dex
-				bmi			L3004										; Loop
-
-				cld
-				lda			#$00
-				sta			HCOIN
-				sta			CREDIT
-				sta			START
-				sta			COINCNT
-				cli															; Enable interrupts
-
-				jsr			L22bc										; Write character RAM 
-
-				lda			#$00
-				sta			$ab											; ?? 
-				sta			VAUD1										; ?? 
-				sta			SCOREP									; Clear player score 
-				sta			SCOREP+1
-
-				;; Set default high score
-				sta			SCOREH									; HS lo
-				lda			#$10
-				sta			SCOREH+1								; HS hi
-
-;				jsr			L180c										; Copy player data to P1
-				jsr			L2f05										; Copy player data to P1
-;				jsr			L1806										; Copy player data to P2
-				jsr			L2f0a										; Copy player data to P2
-
-MAINLOOP:
-				
-				jsr			ATTRACT									; Attract mode 
-				jsr			FAKEGAME								; Fake gameplay
-				jsr			ATTHS										; High score screen 
-
-				lda			START
-				beq			MAINLOOP
-
-				jsr			PLAYGAME
-				jmp			MAINLOOP
 
 				;; Real game play
 PLAYGAME:
@@ -3686,7 +3662,7 @@ L3030:
 				sta			$36
 
 				;; Main game play loop
-L306c:
+GAMELOOP:
 				jsr			L2c99
 				jsr			L3307
 				jsr			L2000										; Check fire button
@@ -3697,19 +3673,25 @@ L306c:
 				jsr			L202f
 				jsr			L2a97
 				jsr			L2e11
-				jsr			L1828
+
+;				jsr			L1828										; Inlined 
+L1828:
+				jsr			L1832
+				jsr			L1847
+				jsr			L2371
+
 				lda			ARROWS									; Active arrows 
-				beq			L309e										; Next level? 
+				beq			L309e										; End of level
 				nop
 
 				lda			$30
 				and			#$02										; Check D1 
-				beq			L306c										; No death
+				beq			GAMELOOP								; No death
 				
 				jsr			L316e										; Handle death
 
 				lda			START										; $00 for game over
-				bne			L306c
+				bne			GAMELOOP
 
 				rts															; GAME OVER 
 
@@ -3735,7 +3717,7 @@ L309e:
 				sta			SPRVAL
 				jsr			L1cf2										; Bonus screen 
 				jsr			L194d
-				jmp			L306c										; Next level
+				jmp			GAMELOOP								; Next level
 				
 				 
 L30c4:
@@ -3752,7 +3734,19 @@ L30c4:
 				nop
 
 L30d8:
-				jmp			L1918										; GAME OVER
+;				jmp			L1918										; GAME OVER
+				;; GAME OVER
+L1918:
+				jsr			L2340										; Clear screen
+
+				;; Draw STR07
+				lda			#$07										; END OF GAME
+				jsr			DRAWSTRA
+
+				lda			#$54
+				jsr			DELAY										; Delay 84 frames  
+				sta			START										; Clear START to flag game over
+				rts
 
 L30de:
 				lda			DSW											; DIPs
@@ -3791,7 +3785,8 @@ L30de:
 				lda			PNUM										; P1=1, P2=0
 				lsr			a												; P1=0, P2=1 
 				tax
-				jsr			L1814										; Copy PX store to player data
+;				jsr			L1814										; Copy PX store to player data
+				jsr			L2eec										; Copy PX store to player data
 				jmp			L309e
 
 L313a:
@@ -3857,7 +3852,8 @@ L318f:
 				sta			$bf
 ;				jsr			L1806										; Copy player data to P2
 				jsr			L2f0a										; Copy player data to P2
-				jsr			L1820										; Copy P1 store to player data
+;				jsr			L1820										; Copy P1 store to player data
+				jsr			L2ee5										; Copy P1 store to player data
 				lda			LIVES										; Lives left
 				bne			L31c1
 				nop
@@ -3868,7 +3864,8 @@ L31ac:
 				sta			$bf
 ;				jsr			L180c										; Copy player data to P1
 				jsr			L2f05										; Copy player data to P1
-				jsr			L181a										; Copy P2 store to player data
+;				jsr			L181a										; Copy P2 store to player data
+				jsr			L2eea										; Copy P2 store to player data
 				jmp			L31bc
 
 L31b9:
@@ -4569,9 +4566,54 @@ ATTHSW:
 
 ATTHSEND:
 				rts
-				
 
+
+				;; 
+				;; End of game high score screen
+				;;
+EOGHS:
+				ldx			#$00										; P1
+				jsr			CHKPX
+
+				ldx			#$01										; P2
+CHKPX:
+				jsr			GETPX										; Get score data
+				inx
+				stx			PNUM										; 1 or 2
+
+				jsr			HSCOMP
+				
+				cmp			#$05
+				bne			DOINITS
+
+				rts															; Not in table
+
+
+DOINITS:
+				sta			HSPOS
+				jsr			DRAWHS
+
+				jsr			L18e2										; Draw HI SCR 
+				jsr			L2a3b										; Draw player scores
+
+				lda			#$1D
+				jsr			DRAWSTRA
+
+				lda			PNUM
+				ora			#$30										; BCD to char
+				sta			$42d9										; Location
+
+				lda			#$27
+				jsr			DRAWSTRA
+
+				jsr			GETINIT									; Get initials 
+				jsr			ADDHS
+				rts
+
+				
+				;; 
 				;; Draw High Score Screen
+				;; 
 DRAWHS:
 				jsr			L2340										; Clear screen
 				lda			#$1a										; TARG
@@ -4625,6 +4667,7 @@ HSLOOP:
 				lda			INITS, x
 				sta			(SCRLOC), y
 
+				;; Next Score
 				pla
 				tax
 				inx
@@ -4634,7 +4677,8 @@ HSLOOP:
 
 				rts
 
-				 
+
+				;; Draw score BCD
 HSBCD:		
 				lda			HSTBL, x								; Get byte
 				and			#$f0										; Mask hi
@@ -4658,6 +4702,8 @@ HSBCDC:
 				dex															; Next BCD 
 				rts
 
+
+				;; Eliminate up to 3 leading zeroes
 KILL0:
 				ldy			#$07										; Location
 KILL0L:
@@ -4678,12 +4724,357 @@ KILL0Z:
 				rts
 
 
+				;; 
+				;; Sort score into high score table
+				;; Returns spot in a
+				;;
+HSCOMP:
+				ldx			#$08										; 5th entry
+
+HSCOMPA:
+				lda			HSTBL+1,X								; hi
+				cmp			SCOREP+1
+				bne			HSNEQ
+
+				lda			HSTBL,X									; lo
+				cmp			SCOREP
+HSNEQ:
+				bcs			HSLEQ										; Carry if > 
+
+				cpx			#$00
+				beq			HSDONE									; New high score!
+
+				;; Next score
+				dex															; Previous
+				dex															; Previous
+				bpl			HSCOMPA									; (Always)
+
+HSLEQ:
+				inx
+				inx
+
+HSDONE:
+				txa
+				lsr			a												; a << 1
+				rts
+								
+
+				;;
+				;; Add score/inits to HS table
+				;;
+GETINIT:
+				ldy			#$00										; 1st initial 
+				lda			#$f4
+				sta			SPRVAL									; Sprite latch
+				lda			#$28
+				sta			SPR1V
+
+				lda			#$48										; 48 / 40 / 38 / 38 / 28
+				sta			SPR1H
+
+				lda			#$40
+				sta			TMPINIT
+				sta			TMPINIT+1
+				sta			TMPINIT+2
+				
+				lda			#$4a										; $4a00 = letter base
+				sta			STRLOC+1
+				jsr			GINIT
+				
+SPIN:
+				jsr			L2000										; Validate inputs 
+				tya
+				asl			a
+				asl			a
+				asl			a
+				adc			#$b7
+				eor			#$ff
+				sta			SPR1H
+
+				lda			CURIN0
+				asl			a												; Drop D7 
+				
+				;; Only check U/D for y=0-2
+				cpy			#$03
+				bmi			IDOUD										; Only check on Pos 0-2
+
+				asl			a												; D6 to carry = down
+				asl			a												; D5 to carry = up
+				bne			INOTU										; Always (Skip U/D) 
+
+				;; Handle down
+IDOUD:
+				asl			a												; D6 to carry = down
+				bcc			INOTD
+
+				jsr			SCRLD
+				beq			SPIN										; Always
+				
+INOTD:
+
+				;; Handle up
+				asl			a												; D5 to carry = up
+				bcc			INOTU
+
+				jsr			SCRLU
+				beq			SPIN										; Always 
+		
+INOTU:
+
+				;; Handle button
+				asl			a												; D4 to carry = button
+				bcc			INOTB
+
+				cpy			#$04										; Only applies at DONE
+				bne			SPIN
+
+				;; Convert $40 to spaces
+				ldy			#$02
+
+SCONVL:	
+				lda			TMPINIT, y
+				and			#$1f
+				bne			NOTSPC
+
+				lda			#$20
+				sta			TMPINIT, y
+
+NOTSPC:
+				dey
+				bpl			SCONVL
+
+				lda			#$ff										; Clear sprites 
+				sta			SPRVAL
+								
+				rts															; (Done with initials)
+
+INOTB:
+
+				;; Handle left
+				asl			a												; D3 to carry = left 
+				bcc			INOTL
+
+				jsr			SINIT										; Store initial
+				dey
+				bpl			IDEL										; y>=0? 
+				iny															; y=0 
+				beq			IDEL										; Always
+				
+INOTL:
+
+				;; Handle right
+				asl			a												; D2 = carry = right 
+				bcc			SPIN
+
+				jsr			SINIT										; Store initial 
+				iny
+				cpy			#$05
+				bcc			IDEL										; y<=5 
+				dey															; y=4 
+				bne			IDEL										; Always 
+
+				
+				;; Check char after U/D
+IFIXCHAR:
+				lda			INITLOC, x
+				cmp			#$3F
+				bne			INOTLO
+				lda			#$5A										; $3F -> $5A (y)
+INOTLO:
+				cmp			#$5B
+				bne			INOTHI
+				lda			#$40										; $5B -> $40 (space) 
+INOTHI:
+				sta			INITLOC, x
+
+IDEL:
+				jsr			GINIT										; XXX
+				lda			#$08
+				jsr			DELAY										; Delay 8 IRQs 
+				beq			SPIN										; Always 
+
+
+				;;
+				;; Scroll char down
+				;; 
+SCRLD:
+				lda			STRLOC
+				cmp			#$d8
+				bne			SCRLDL
+
+				lda			#$00
+				sta			STRLOC
+SCRLDL:	
+				inc			STRLOC
+				jsr			WRCHAR
+				lda			#$01
+				jsr			DELAY
+				lda			STRLOC
+				and			#$07										; Mask LSBs
+				bne			SCRLDL
+				rts
+
+								
+				;;
+				;; Scroll char down
+				;; 
+SCRLU:
+				lda			STRLOC
+				bne			SCRLUL
+
+				lda			#$d8
+				sta			STRLOC
+SCRLUL:	
+				dec			STRLOC
+				jsr			WRCHAR
+				lda			#$02
+				jsr			DELAY
+				lda			STRLOC
+				and			#$07										; Mask LSBs
+				bne			SCRLUL
+				rts
+
+				
+				;;
+				;; Store Initial
+				;;
+SINIT:
+				cpy			#$03
+				bcs			SINITE									; >=3
+
+				lda			STRLOC
+				lsr			a
+				lsr			a
+				lsr			a
+				ora			#$40 
+				cmp			#$5b
+				bne			SNOT5B									; No 
+
+				lda			#$40
+
+SNOT5B:	
+				sta			TMPINIT, y
+				sta			INITLOC, y
+
+SINITE:
+				rts
+
+
+				;;
+				;; Get Initial
+				;;
+GINIT:
+				cpy			#$03
+				bcs			GINITE									; >=3
+
+				lda			TMPINIT, y
+				asl			a
+				asl			a
+				asl			a
+				sta			STRLOC
+				
+				lda			#$ff
+				sta			INITLOC, y
+
+GINITE:	
+;				rts															; Segue... 
+
+
+				;;
+				;; Rewrite $ff char
+				;; 
+WRCHAR:
+				sty			L0000
+				ldy			#$07
+WCLOOP:	
+				lda			(STRLOC), y
+				sta			$4ff8, y
+				dey
+				bpl			WCLOOP
+
+				ldy			L0000
+				rts
+
+				;;
+				;; Add score/inits to HS table
+				;;
+ADDHS:
+				ldy			#$04										; 5th pos (-1)
+HSILOOP:
+				cpy			HSPOS										; Compare to POS
+				beq			SHSPOT
+
+				dey
+
+				;; Shift scores down 1 spot
+				tya
+				asl			a												; y*2
+				tax
+				lda			HSTBL+0, x
+				sta			HSTBL+2, x
+				lda			HSTBL+1, x
+				sta			HSTBL+3, x
+
+				;; Shift initials down 1 spot
+				tya
+				sta			HSCNT										; Stash 
+				asl			a												; a<<1 
+				adc			HSCNT										; y*3
+				sta			HSCNT										; Save for later 
+				tax
+				lda			INITS+0, x
+				sta			INITS+3, x
+				lda			INITS+1, x
+				sta			INITS+4, x
+				lda			INITS+2, x
+				sta			INITS+5, x
+
+				jmp			HSILOOP
+
+				;; Write at new spot
+SHSPOT:
+				tya															; y == HSLOC 
+				asl			a												; y*2
+
+				;; Write player score
+				tax
+				lda			SCOREP
+				sta			HSTBL, x
+				lda			SCOREP+1
+				sta			HSTBL+1, x
+
+				;; Write player initials
+				ldx			HSCNT
+				lda			INITLOC
+				sta			INITS+0, x
+				lda			INITLOC+1
+				sta			INITS+1, x
+				lda			INITLOC+2
+				sta			INITS+2, x
+
+				rts
+
+				
+				;;
+				;; Common text include
+				;;
+
+.include "targ_txt.asm"
+
 				.org		$3800
-				.include "targ_char.asm"
+
+				;;
+				;; Targ character table
+				;;
+
+.include "targ_char.asm"
 
 				.org		$3f00
 
-				
+				;; 
+				;; $f8 empty bytes
+				;;
+
 				;; Vectors
 				.org		$3ff8
 				.dw			LRESET									; ???   vector

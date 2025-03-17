@@ -6,7 +6,7 @@ STR01:																					; L1e72
 				.db			"EXTRA POINTS",$00
 
 STR02:																					; L1e7f
-				.db			"EXTENDED PLAY FOR "x
+				.db			"EXTENDED PLAY FOR "
 				
 STR0A:																					; L27e2
 				.db			"PLAYER   ", $00
@@ -87,7 +87,7 @@ STR1C:
 				.db			"RANK   SCORE  NAME",$00
 
 STR1D:
-				.db			"GREAT SCORE",$00
+				.db			"GREAT SCORE PLAYER ",$00
 				
 STR20:
 				.db			"1ST",$00
@@ -104,6 +104,8 @@ STR23:
 STR24:
 				.db			"5TH",$00
 
+STR27:
+				.db			"INTER INITIALS  @@@ DONE",$00
 
 TXTTBL:
 				.dw			STR00
@@ -145,6 +147,7 @@ TXTTBL:
 				.dw			STR24
 				.dw			STR25
 				.dw			STR26
+				.dw			STR27
 
 				;; Screen locations
 TXTLOC:
@@ -152,8 +155,8 @@ TXTLOC:
 				.dw			$414a														; STR01
 				.dw			$4204														; STR02  
 				.dw			$422c														; STR03
-				.dw			$420b														; STR04 
-				.dw			$4238														; STR05 
+				.dw			$420a														; STR04 
+				.dw			$4245														; STR05 
 				.dw			$402a														; STR06
 				.dw			$420b														; STR07 
 				.dw			$430e														; STR08
@@ -177,7 +180,7 @@ TXTLOC:
 				.dw			$406e														; STR1A
 				.dw			$40c6														; STR1B
 				.dw			$4107														; STR1C
-				.dw			$4000														; STR1D
+				.dw			$42c6														; STR1D
 				.dw			$42ea														; STR1E
 				.dw			$430f														; STR1F
 				.dw			$4167														; STR20
@@ -187,6 +190,7 @@ TXTLOC:
 				.dw			$4267														; STR24
 				.dw			$432a														; STR25
 				.dw			$432a														; STR26
+				.dw			$4304														; STR27
 				
 .if 0
 				;; Remove unused text
